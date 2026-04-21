@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: order-service
+  config:
+    import: "configserver:http://localhost:8888"
+  profiles:
+    active: rest
+
+  kafka:
+    bootstrap-servers: localhost:9092,9093,9094
