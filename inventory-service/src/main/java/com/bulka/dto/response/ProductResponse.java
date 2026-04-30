@@ -1,4 +1,4 @@
-package com.bulka.dto;
+package com.bulka.dto.response;
 
 import lombok.Builder;
 import lombok.Data;

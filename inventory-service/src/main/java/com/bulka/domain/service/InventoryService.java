@@ -1,12 +1,11 @@
 package com.bulka.domain.service;
 
-import com.bulka.dto.ConfirmReservationResponse;
-import com.bulka.dto.ProductResponse;
-import com.bulka.dto.ReservationItemRequest;
-import com.bulka.dto.ReservationItemResponse;
-import com.bulka.dto.ReservationRequest;
-import com.bulka.dto.ReservationResponse;
-import com.bulka.exception.NotEnoughStockException;
+import com.bulka.dto.response.ConfirmReservationResponse;
+import com.bulka.dto.response.ProductResponse;
+import com.bulka.dto.request.ReservationItemRequest;
+import com.bulka.dto.response.ReservationItemResponse;
+import com.bulka.dto.request.ReservationRequest;
+import com.bulka.dto.response.ReservationResponse;
 import com.bulka.domain.model.Product;
 import com.bulka.domain.model.Reservation;
 import com.bulka.domain.model.ReservationItem;
@@ -88,7 +87,7 @@ public class InventoryService {
             return getReservation(existing);
         }
 
-        List<ReservationItemResponse> result = new ArrayList<>();
+        List<ReservationItemResponse> reservationItemListResponse = new ArrayList<>();
         List<ReservationItem> reservationItemList = new ArrayList<>();
 
         Reservation reservation = Reservation.builder()
@@ -97,40 +96,69 @@ public class InventoryService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        for(ReservationItemRequest item: reservationRequest.getItems()){
-            Product product = productRepository.findById(item.getProductId()).orElseThrow();
-            int updated = productRepository.reserve(
+        try {
+            for (ReservationItemRequest item : reservationRequest.getItems()) {
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                if (product == null) {
+                    return ReservationResponse.failure("Product %d not found".formatted(item.getProductId()));
+                }
+
+                int updated = productRepository.reserve(
+                        item.getProductId(),
+                        item.getQuantity()
+                );
+
+                if (updated == 0) {
+                    return ReservationResponse.failure("ProductId - %d not enough stock".formatted(item.getProductId()));
+                }
+
+                reservationItemList.add(ReservationItem.builder()
+                        .reservation(reservation)
+                        .productId(item.getProductId())
+                        .quantity(item.getQuantity())
+                        .price(product.getPrice())
+                        .build());
+
+                reservationItemListResponse.add(ReservationItemResponse.builder()
+                        .productId(item.getProductId())
+                        .quantity(item.getQuantity())
+                        .price(product.getPrice())
+                        .build()
+                );
+            }
+
+            reservation.addItems(reservationItemList);
+            reservation.setStatus(ReservationStatus.RESERVED);
+            Reservation saveReservation = reservationRepository.save(reservation);
+
+            return ReservationResponse.success(saveReservation.getId(), reservationItemListResponse);
+        }
+        catch (Exception e){
+            return ReservationResponse.failure("Internal error occurred. %s".formatted(e.getMessage()));
+        }
+    }
+
+    @Transactional
+    public void releaseReserve(Long reservationId){
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new RuntimeException("Reservation id %d not found".formatted(reservationId)));
+
+        if(reservation.getStatus() == ReservationStatus.CONFIRMED ||
+            reservation.getStatus() == ReservationStatus.EXPIRED ||
+            reservation.getStatus() == ReservationStatus.FAILED) {
+            return;
+        }
+
+        List<ReservationItem> itemList = reservationItemRepository.findAllByReservationId(reservationId);
+
+        for(ReservationItem item: itemList){
+            productRepository.increaseStock(
                     item.getProductId(),
                     item.getQuantity()
             );
-
-            if(updated == 0){
-                throw new NotEnoughStockException("ProductId - %d not enough ".formatted(item.getProductId()));
-            }
-
-            reservationItemList.add(ReservationItem.builder()
-                    .reservation(reservation)
-                    .productId(item.getProductId())
-                    .quantity(item.getQuantity())
-                    .price(product.getPrice())
-                    .build());
-
-            result.add(ReservationItemResponse.builder()
-                    .productId(item.getProductId())
-                    .quantity(item.getQuantity())
-                    .price(product.getPrice())
-                    .build()
-            );
         }
 
-        reservation.addItems(reservationItemList);
-        reservation.setStatus(ReservationStatus.RESERVED);
-        Reservation saveReservation = reservationRepository.save(reservation);
-
-        return ReservationResponse.builder()
-                .reservationId(saveReservation.getId())
-                .items(result)
-                .build();
+        reservation.setStatus(ReservationStatus.FAILED);
     }
 
     @Transactional
@@ -175,6 +203,7 @@ public class InventoryService {
         return ReservationResponse.builder()
                 .reservationId(reservation.getId())
                 .items(result)
+                .success(true)
                 .build();
     }
 }

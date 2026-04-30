@@ -1,4 +1,4 @@
-package com.bulka.dto;
+package com.bulka.dto.event;
 
 import lombok.Builder;
 import lombok.Data;
@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 
 @Data
 @Builder
-public class ReservationItemResponse {
+public class ReservationItemEvent {
     Long productId;
     Integer quantity;
     BigDecimal price;

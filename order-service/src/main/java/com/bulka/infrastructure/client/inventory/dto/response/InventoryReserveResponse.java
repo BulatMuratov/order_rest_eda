@@ -8,4 +8,6 @@ import java.util.List;
 public class InventoryReserveResponse {
     private Long reservationId;
     private List<InventoryReserveItemResponse> items;
+    private boolean success;
+    private String errorMessage;
 }

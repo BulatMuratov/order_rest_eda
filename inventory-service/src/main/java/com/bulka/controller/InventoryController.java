@@ -1,10 +1,9 @@
 package com.bulka.controller;
 
-import com.bulka.application.InventoryWorkflow;
-import com.bulka.dto.ConfirmReservationResponse;
-import com.bulka.dto.ProductResponse;
-import com.bulka.dto.ReservationRequest;
-import com.bulka.dto.ReservationResponse;
+import com.bulka.dto.response.ConfirmReservationResponse;
+import com.bulka.dto.response.ProductResponse;
+import com.bulka.dto.request.ReservationRequest;
+import com.bulka.dto.response.ReservationResponse;
 import com.bulka.domain.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -22,7 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InventoryController {
 
-    private final InventoryWorkflow inventoryWorkflow;
+    private final InventoryService inventoryService;
 
 
 //    @PostMapping("/check")
@@ -36,20 +36,26 @@ public class InventoryController {
     public ResponseEntity<List<ProductResponse>> getProducts(@RequestBody List<Long> productIds){
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(inventoryWorkflow.getProducts(productIds));
+                .body(inventoryService.getProducts(productIds));
     }
 
     @PostMapping("/reserve")
     public ResponseEntity<ReservationResponse> reserve(@RequestBody ReservationRequest reservationRequest){
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(inventoryWorkflow.reserve(reservationRequest));
+                .body(inventoryService.reserve(reservationRequest));
     }
 
     @PostMapping("/reserve/{reservationId}/confirm")
-    public ResponseEntity<ConfirmReservationResponse> confirmStock(@PathVariable Long  reservationId){
+    public ResponseEntity<ConfirmReservationResponse> confirmStock(@PathVariable Long reservationId){
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(inventoryWorkflow.confirmReservation(reservationId));
+                .body(inventoryService.confirmReservation(reservationId));
+    }
+
+    @PostMapping("/reserve/{reservationId}/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void releaseReserve(@PathVariable Long reservationId){
+        inventoryService.releaseReserve(reservationId);
     }
 }

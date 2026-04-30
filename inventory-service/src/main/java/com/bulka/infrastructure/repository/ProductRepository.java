@@ -19,6 +19,14 @@ public interface ProductRepository extends CrudRepository<Product, Long> {
     int reserve(@Param("productId") Long productId,
                 @Param("quantity") Integer quantity);
 
+    @Modifying
+    @Query("""
+        UPDATE Product p
+        SET p.stock = p.stock + :quantity
+        WHERE p.id = :productId
+        """)
+    int increaseStock(@Param("productId") Long productId,
+                      @Param("quantity") Integer quantity);
 //    @Modifying
 //    @Query("""
 //    UPDATE Product p
