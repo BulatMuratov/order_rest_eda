@@ -1,4 +1,4 @@
-package com.bulka.model;
+package com.bulka.domain.model;
 
 import com.bulka.dto.PaymentStatus;
 import jakarta.persistence.Entity;

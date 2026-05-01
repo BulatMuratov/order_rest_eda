@@ -1,6 +1,6 @@
-package com.bulka.repository;
+package com.bulka.infrastructure.repository;
 
-import com.bulka.model.Payment;
+import com.bulka.domain.model.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

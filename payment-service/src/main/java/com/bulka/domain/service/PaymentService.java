@@ -1,20 +1,20 @@
-package com.bulka.service;
+package com.bulka.domain.service;
 
-import com.bulka.dto.PaymentRequest;
-import com.bulka.dto.PaymentResponse;
+import com.bulka.dto.request.PaymentRequest;
+import com.bulka.dto.response.PaymentResponse;
 import com.bulka.dto.PaymentStatus;
-import com.bulka.model.Payment;
-import com.bulka.repository.PaymentRepository;
-import com.bulka.service.processor.PaymentProcessor;
+import com.bulka.domain.model.Payment;
+import com.bulka.exception.PaymentServiceUnavailableException;
+import com.bulka.infrastructure.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
-    private final PaymentProcessor paymentProcessor;
 
     private final PaymentRepository paymentRepository;
 
@@ -31,37 +31,45 @@ public class PaymentService {
             success = simulate();
         }
         catch (Exception e) {
-            success = false;
+            return PaymentResponse.failer("Payment service error. " + e.getMessage());
         }
         payment.setStatus(success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED);
 
         paymentRepository.save(payment);
 
-
-        return PaymentResponse.builder()
-                .transactionId(payment.getId().toString())
-                .paymentStatus(payment.getStatus())
-                .build();
+        if(payment.getStatus().equals(PaymentStatus.FAILED)) {
+            return PaymentResponse.failer("Business error");
+        }
+        return PaymentResponse.success(payment.getId().toString());
     }
+
+    @Transactional
+    public void refund(Long orderId){
+        Payment payment = paymentRepository.findByOrderId(orderId).orElseThrow(
+                () -> new RuntimeException("Payment not found"));
+
+        payment.setStatus(PaymentStatus.FAILED);
+    }
+
 
     private boolean simulate() {
         double random = Math.random();
 
-        // 70% успех
-        if (random < 0.7) {
+        // 80% успех
+        if (random < 0.8) {
             sleep(100, 300);
             return true;
         }
 
-        // 20% бизнес-ошибка
-        if (random < 0.9) {
+        // 18% бизнес-ошибка
+        if (random < 0.98) {
             sleep(100, 300);
             return false;
         }
 
-        // 10% техническая ошибка
+        // 2% техническая ошибка
         sleep(300, 700);
-        throw new RuntimeException("Payment service unavailable");
+        throw new PaymentServiceUnavailableException("Payment service unavailable");
     }
 
     private void sleep(int minMs, int maxMs) {
