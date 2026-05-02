@@ -165,7 +165,10 @@ public class InventoryService {
     public ConfirmReservationResponse confirmReservation(Long reservationId){
         Reservation reservation = reservationRepository.findById(reservationId).orElseThrow();
         if(reservation.getStatus() != ReservationStatus.RESERVED){
-            throw new RuntimeException("Reservation status is not RESERVED");
+            return ConfirmReservationResponse.builder()
+                    .success(false)
+                    .errorMessage("Reservation status is not RESERVE")
+                    .build();
         }
 
 //        List<ReservationItem> reservationItemList = reservationItemRepository.findAllByReservationId(reservationId);
@@ -186,6 +189,7 @@ public class InventoryService {
         return ConfirmReservationResponse.builder()
                 .reservationId(reservationId)
                 .status(ReservationStatus.CONFIRMED.toString())
+                .success(true)
                 .build();
     }
 

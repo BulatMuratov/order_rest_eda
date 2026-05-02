@@ -1,8 +1,6 @@
-package com.bulka.infrastructure.client.inventory;
+package com.bulka.infrastructure.client.inventory.dto.response;
 
 import lombok.Data;
-
-import java.math.BigDecimal;
 
 @Data
 public class InventoryProductResponse {

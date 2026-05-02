@@ -1,4 +1,4 @@
-package com.bulka.infrastructure.client.inventory;
+package com.bulka.infrastructure.client.inventory.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

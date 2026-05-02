@@ -1,4 +1,4 @@
-package com.bulka.infrastructure.client.inventory;
+package com.bulka.infrastructure.client.inventory.dto.response;
 
 import lombok.Builder;
 import lombok.Data;
@@ -7,5 +7,6 @@ import lombok.Data;
 @Builder
 public class ConfirmReserveResponse {
     private Long reservationId;
-    private String status;
+    private Boolean success;
+    private String errorMessage;
 }

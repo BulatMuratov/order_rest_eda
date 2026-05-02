@@ -1,30 +1,31 @@
 package com.bulka.application.impl;
 
-import com.bulka.infrastructure.client.inventory.ConfirmReserveResponse;
+import com.bulka.application.mapper.InventoryReserveItemMapper;
+import com.bulka.application.mapper.OrderItemFilledMapper;
+import com.bulka.dto.OrderStatus;
+import com.bulka.exception.OrderConfirmException;
+import com.bulka.exception.OrderPayException;
+import com.bulka.exception.OrderReserveException;
+import com.bulka.infrastructure.client.inventory.dto.response.ConfirmReserveResponse;
 import com.bulka.infrastructure.client.inventory.InventoryClient;
-//import com.bulka.infrastructure.client.inventory.InventoryCheckRequest;
-//import com.bulka.infrastructure.client.inventory.InventoryCheckResponse;
-import com.bulka.infrastructure.client.inventory.InventoryProductResponse;
-import com.bulka.infrastructure.client.inventory.InventoryReserveItemRequest;
-import com.bulka.infrastructure.client.inventory.InventoryReserveItemResponse;
-import com.bulka.infrastructure.client.inventory.InventoryReserveRequest;
-import com.bulka.infrastructure.client.inventory.InventoryReserveResponse;
-import com.bulka.infrastructure.client.inventory.ProductStatus;
+import com.bulka.infrastructure.client.inventory.dto.response.InventoryProductResponse;
+import com.bulka.infrastructure.client.inventory.dto.request.InventoryReserveItemRequest;
+import com.bulka.infrastructure.client.inventory.dto.request.InventoryReserveRequest;
+import com.bulka.infrastructure.client.inventory.dto.response.InventoryReserveResponse;
 import com.bulka.infrastructure.client.payment.PaymentClient;
-import com.bulka.infrastructure.client.payment.PaymentRequest;
-import com.bulka.infrastructure.client.payment.PaymentResponse;
-import com.bulka.infrastructure.client.payment.PaymentStatus;
+import com.bulka.infrastructure.client.payment.dto.request.PaymentRequest;
+import com.bulka.infrastructure.client.payment.dto.response.PaymentResponse;
 import com.bulka.dto.OrderItemDto;
 import com.bulka.dto.OrderItemFilled;
 import com.bulka.dto.request.OrderRequest;
 import com.bulka.dto.response.OrderDetailsResponse;
 import com.bulka.dto.response.OrderItemDetailsResponse;
 import com.bulka.dto.response.OrderResponse;
-import com.bulka.dto.OrderStatus;
 import com.bulka.dto.response.ProductResponse;
 import com.bulka.application.OrderWorkflow;
 import com.bulka.domain.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -36,101 +37,89 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
+@Primary
 @Profile("rest")
 @RequiredArgsConstructor
 public class RestOrderWorkflow implements OrderWorkflow {
     private final OrderService orderService;
+
     private final PaymentClient paymentClient;
     private final InventoryClient inventoryClient;
 
+    private final InventoryReserveItemMapper inventoryReserveItemMapper;
+    private final OrderItemFilledMapper orderItemFilledMapper;
+
     @Override
     public OrderResponse createOrder(OrderRequest request) {
-
+        Long reservationId = null;
 
         OrderResponse order = orderService.createOrder(request.getItems());
 
         List<InventoryReserveItemRequest> inventoryReserveItemRequests = request.getItems().stream()
-                .map(orderItem -> new InventoryReserveItemRequest(orderItem.getProductId(), orderItem.getQuantity()))
+                .map(inventoryReserveItemMapper::map)
                 .toList();
-        try{
-            InventoryReserveResponse response =  inventoryClient.reserve(InventoryReserveRequest.builder()
-                    .orderId(order.getId())
-                    .items(inventoryReserveItemRequests)
-                    .build());
 
-            List<OrderItemFilled> orderItemList = response.getItems().stream()
-                    .map(item -> new OrderItemFilled(
-                            item.getProductId(),
-                            item.getQuantity(),
-                            item.getPrice()))
-                    .toList();
+        InventoryReserveResponse inventoryResponse =  inventoryClient.reserve(InventoryReserveRequest.builder()
+                .orderId(order.getId())
+                .items(inventoryReserveItemRequests)
+                .build());
 
-            BigDecimal totalAmount = orderItemList.stream()
-                    .map(OrderItemFilled::getPrice)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        reservationId = inventoryResponse.getReservationId();
 
-            orderService.updateAmount(order.getId(), orderItemList);
-            order.setAmount(totalAmount);
+        if(!inventoryResponse.getSuccess()){
+            order.markFailed();
+            orderService.updateOrderStatus(order.getId(), OrderStatus.FAILED);
+            throw new OrderReserveException(inventoryResponse.getErrorMessage());
+        }
 
-            PaymentResponse payment = paymentClient.pay(
-                    PaymentRequest.builder()
-                            .orderId(order.getId())
-                            .amount(totalAmount)
-                            .build()
-            );
+        order.markReserved();
+        orderService.updateOrderStatus(order.getId(), OrderStatus.RESERVED);
 
-            ConfirmReserveResponse confirmReserveResponse = inventoryClient.confirmReserve(response.getReservationId());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+
+        List<OrderItemFilled> orderItemList = inventoryResponse.getItems().stream()
+                .map(orderItemFilledMapper::map)
+                .toList();
+
+        BigDecimal totalAmount = orderItemList.stream()
+                .map(OrderItemFilled::getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        orderService.updateAmount(order.getId(), totalAmount);
+        order.setAmount(totalAmount);
+
+        PaymentResponse payment = paymentClient.pay(
+                PaymentRequest.builder()
+                        .orderId(order.getId())
+                        .amount(totalAmount)
+                        .build()
+        );
+
+        if(!payment.getSuccess()){
+            inventoryClient.cancelReserve(reservationId); // компенсация
+
+            order.markFailed();
+            orderService.updateOrderStatus(order.getId(), OrderStatus.FAILED);
+            throw new OrderPayException(payment.getErrorMessage());
         }
 
 
-//        List<InventoryCheckRequest> inventoryCheckRequestsList = request.getItems().stream()
-//                .map(i -> new InventoryCheckRequest(i.getProductId(), i.getQuantity()))
-//                .toList();
+        order.markPaid();
+        orderService.updateOrderStatus(order.getId(), OrderStatus.PAID);
 
-//        List<InventoryCheckResponse> inventoryResponsesList = inventoryClient.checkStock(inventoryCheckRequestsList);
+        ConfirmReserveResponse confirmReserveResponse = inventoryClient.confirmReserve(reservationId);
 
-//        boolean allAvailable = inventoryResponsesList.stream()
-//                .allMatch(el -> el.getStatus().equals(ProductStatus.AVAILABLE));
-//
-//        if(!allAvailable){
-//            throw new RuntimeException("no stock");
-//        }
+        if(!confirmReserveResponse.getSuccess()){
+            paymentClient.refund(order.getId()); // компенсация
+            inventoryClient.cancelReserve(reservationId);
 
+            order.markFailed();
+            orderService.updateOrderStatus(order.getId(), OrderStatus.FAILED);
+            throw new OrderConfirmException(confirmReserveResponse.getErrorMessage());
+        }
 
-//
-//        List<OrderItemFilled> orderItemFilledList = inventoryResponsesList.stream()
-//                .map(i -> new OrderItemFilled(i.getProductId(), i.getRequested(), i.getPrice()))
-//                .toList();
-//
-//
-//        try {
-//
-//
-//            orderService.updateOrderStatus(
-//                    order.getId(),
-//                    payment.getPaymentStatus().equals(PaymentStatus.SUCCESS)
-//                            ? OrderStatus.PAID : OrderStatus.FAILED
-//            );
-//            order.setStatus(payment.getPaymentStatus().equals(PaymentStatus.SUCCESS)
-//                    ? OrderStatus.COMPLETED.toString() : OrderStatus.FAILED.toString());
-//
-//            inventoryClient.reserve(inventoryCheckRequestsList);
-//            orderService.updateOrderStatus(
-//                    order.getId(),
-//                    OrderStatus.RESERVED
-//            );
-//            order.setStatus(OrderStatus.RESERVED.toString());
-//            orderService.updateOrderStatus(
-//                    order.getId(),
-//                    OrderStatus.COMPLETED
-//            );
-//            order.setStatus(OrderStatus.COMPLETED.toString());
-//        } catch (Exception e){
-//            orderService.updateOrderStatus(order.getId(), OrderStatus.FAILED);
-//            order.setStatus(OrderStatus.FAILED.toString());
-//        }
+        order.markCompleted();
+        orderService.updateOrderStatus(order.getId(), OrderStatus.COMPLETED);
+
         return order;
     }
 

@@ -2,8 +2,8 @@ package com.bulka.dto;
 
 public enum OrderStatus {
     CREATED,
-    PAID,
     RESERVED,
+    PAID,
     COMPLETED,
     FAILED
 }

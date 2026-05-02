@@ -74,8 +74,10 @@ public class OrderService {
         return orderItemDtoList;
     }
 
-    public void updateAmount(Long orderId, List<OrderItemFilled> orderItemList) {
-
+    @Transactional
+    public void updateAmount(Long orderId, BigDecimal totalAmount) {
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        order.setTotalAmount(totalAmount);
     }
 
     @Transactional

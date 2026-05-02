@@ -1,4 +1,4 @@
-package com.bulka.infrastructure.client.payment.dto.request;
+package com.bulka.dto.event;
 
 import lombok.Builder;
 import lombok.Data;
@@ -7,7 +7,8 @@ import java.math.BigDecimal;
 
 @Data
 @Builder
-public class PaymentRequest {
+public class StartPaymentEvent {
     private Long orderId;
+    private Long reservationId;
     private BigDecimal amount;
 }
