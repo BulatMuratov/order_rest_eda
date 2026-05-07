@@ -7,10 +7,12 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
 
   kafka-1:
+    container_name: kafka-1
     image: confluentinc/cp-kafka:7.5.0
     depends_on: [zookeeper]
     ports:
       - "9092:9092"
+    mem_limit: 512m
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -20,10 +22,12 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
 
   kafka-2:
+    container_name: kafka-2
     image: confluentinc/cp-kafka:7.5.0
     depends_on: [zookeeper]
     ports:
       - "9093:9093"
+    mem_limit: 512m
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -34,8 +38,10 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
 
   kafka-3:
+    container_name: kafka-3
     image: confluentinc/cp-kafka:7.5.0
     depends_on: [zookeeper]
+    mem_limit: 512m
     ports:
       - "9094:9094"
     environment:

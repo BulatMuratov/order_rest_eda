@@ -13,10 +13,10 @@ public class InventoryEventProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void publishStockReserved(StockReservedEvent event){
-        kafkaTemplate.send("inventory-events", event.getReservationId().toString(), event);
+        kafkaTemplate.send("inventory.status", event.getReservationId().toString(), event);
     }
 
     public void publishStockFailed(StockFailedEvent event){
-        kafkaTemplate.send("inventory-events", event.getOrderId().toString(), event);
+        kafkaTemplate.send("inventory.status", event.getOrderId().toString(), event);
     }
 }

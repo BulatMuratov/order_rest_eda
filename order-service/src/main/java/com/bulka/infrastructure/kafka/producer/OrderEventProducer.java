@@ -14,14 +14,14 @@ public class OrderEventProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void publishOrderCreated(OrderCreatedEvent event){
-        kafkaTemplate.send("order-events", event.getOrderId().toString(), event);
+        kafkaTemplate.send("orders.lifecycle", event.getOrderId().toString(), event);
     }
 
     public void publishStartPayment(StartPaymentEvent event){
-        kafkaTemplate.send("order-events", event.getOrderId().toString(), event);
+        kafkaTemplate.send("orders.commands", event.getOrderId().toString(), event);
     }
 
     public void publishConfirmStock(ConfirmReservedEvent event){
-        kafkaTemplate.send("order-events", event.getReservationId().toString(), event);
+        kafkaTemplate.send("inventory.commands", event.getReservationId().toString(), event);
     }
 }

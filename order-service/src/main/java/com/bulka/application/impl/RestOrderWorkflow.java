@@ -37,8 +37,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-@Primary
-@Profile("rest")
+//@Primary
+//@Profile("rest")
 @RequiredArgsConstructor
 public class RestOrderWorkflow implements OrderWorkflow {
     private final OrderService orderService;

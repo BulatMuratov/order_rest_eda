@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -84,5 +86,25 @@ public class OrderService {
     public void updateOrderStatus(Long orderId, OrderStatus orderStatus) {
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.setStatus(orderStatus);
+    }
+
+    @Transactional
+    public void updateAmountOrderItemList(Long orderId, List<OrderItemFilled> orderItemList) {
+        List<OrderItem> existingItems = orderItemRepository.findAllByOrderId(orderId);
+
+        if(existingItems.isEmpty()) {
+            return;
+        }
+        Map<Long, BigDecimal> priceMap = orderItemList.stream()
+                .collect(Collectors.toMap(
+                        OrderItemFilled::getProductId,
+                        OrderItemFilled::getPrice,
+                        (p1, p2) -> p1 // На случай дублей в списке берем первый
+                ));
+
+        for(OrderItem item: existingItems) {
+            item.setPrice(priceMap.get(item.getProductId()));
+        }
+
     }
 }
