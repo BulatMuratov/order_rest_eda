@@ -1,5 +1,6 @@
 package com.bulka.infrastructure.kafka.producer;
 
+import com.bulka.dto.event.CancelReservationEvent;
 import com.bulka.dto.event.ConfirmReservedEvent;
 import com.bulka.dto.event.OrderCreatedEvent;
 import com.bulka.dto.event.StartPaymentEvent;
@@ -22,6 +23,10 @@ public class OrderEventProducer {
     }
 
     public void publishConfirmStock(ConfirmReservedEvent event){
+        kafkaTemplate.send("inventory.commands", event.getReservationId().toString(), event);
+    }
+
+    public void publishCancelReservation(CancelReservationEvent event){
         kafkaTemplate.send("inventory.commands", event.getReservationId().toString(), event);
     }
 }

@@ -24,7 +24,7 @@ public class PaymentLifecycleConsumer {
 
     @KafkaHandler
     public void handlePaymentFailed(PaymentFailedEvent event) {
-
+        orderWorkflow.processPaymentFailure(event.getOrderId(), event.getReservationId());
     }
 
 }

@@ -4,6 +4,7 @@ import com.bulka.application.OrderWorkflow;
 import com.bulka.domain.service.OrderService;
 import com.bulka.dto.OrderItemFilled;
 import com.bulka.dto.OrderStatus;
+import com.bulka.dto.event.CancelReservationEvent;
 import com.bulka.dto.event.ConfirmReservedEvent;
 import com.bulka.dto.event.OrderCreatedEvent;
 import com.bulka.dto.event.OrderItemEvent;
@@ -22,7 +23,7 @@ import java.util.List;
 
 @Component
 //@Profile("kafka")
-@Primary
+//@Primary
 @RequiredArgsConstructor
 public class KafkaOrderWorkflow implements OrderWorkflow {
 
@@ -87,7 +88,20 @@ public class KafkaOrderWorkflow implements OrderWorkflow {
         orderService.updateOrderStatus(orderId, OrderStatus.COMPLETED);
     }
 
-    public void cancelOrder(){
-
+    @Transactional
+    public void cancelOrder(Long orderId){
+        orderService.updateOrderStatus(orderId, OrderStatus.FAILED);
     }
+
+    @Transactional
+    public void processPaymentFailure(Long orderId, Long reservationId){
+        orderService.updateOrderStatus(orderId, OrderStatus.FAILED);
+
+        orderEventProducer.publishCancelReservation(CancelReservationEvent.builder()
+                .orderId(orderId)
+                .reservationId(reservationId)
+                .message("Payment failed")
+                .build());
+    }
+
 }

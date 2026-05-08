@@ -193,6 +193,11 @@ public class InventoryService {
                 .build();
     }
 
+    @Transactional
+    public void cancelReservation(Long orderId, Long reservationId){
+
+    }
+
     private ReservationResponse getReservation(Reservation reservation){
         List<ReservationItemResponse> result = new ArrayList<>();
         List<ReservationItem> reservationItemList = reservationItemRepository.findAllByReservationId(reservation.getId());

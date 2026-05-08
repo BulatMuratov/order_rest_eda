@@ -29,6 +29,6 @@ public class InventoryStatusConsumer {
 
     @KafkaHandler
     public void handleStockReserveFailed(StockFailedEvent event) {
-
+        orderWorkflow.cancelOrder(event.getOrderId());
     }
 }
